@@ -81,7 +81,7 @@ main .wrap{padding-block:16px 140px;display:grid;gap:14px}
 .target{font-family:var(--display);font-weight:700;font-size:16px;white-space:nowrap;color:var(--accent);letter-spacing:.02em}
 .meta{font-size:13px;color:var(--muted);display:grid;gap:2px}
 .hint{font-size:13px;font-weight:600}
-.hint.up{color:var(--good)} .hint.hold{color:var(--warn)}
+.hint.up{color:var(--good)} .hint.down{color:var(--warn)} .hint.stay,.hint.max{color:var(--ink)}
 .sets{display:grid;gap:6px}
 .setrow{display:grid;grid-template-columns:28px 1fr 1fr 52px;gap:8px;align-items:center}
 .setrow .n{font-family:var(--display);font-weight:700;color:var(--muted);text-align:center;font-size:16px}
@@ -213,12 +213,43 @@ function draftFor(day){
     const d = {};
     PLAN[day].ex.forEach(e=>{
       const p = prev && prev.sets[e.id] || [];
-      const w = p.length ? p[0].w : "";
+      const sug = suggestFor(e, p);
+      const w = sug && sug.w !== undefined ? String(sug.w) : (p.length ? p[0].w : "");
       d[e.id] = Array.from({length:e.sets},()=>({w, r:"", done:false}));
     });
     S.drafts[day] = d;
   }
   return S.drafts[day];
+}
+
+// Weights you actually own. Dumbbell pairs 5–30; the 36 lb kettlebell adds a top step for goblet squats and swings.
+const KB_EX = new Set(["gob","swing"]);
+function stepsFor(e){ return KB_EX.has(e.id) ? [5,10,15,20,25,30,36] : [5,10,15,20,25,30] }
+
+// Double progression: every set at the top of the range -> next weight up.
+// Most sets short of the bottom of the range -> one weight down. Otherwise stay and beat your reps.
+function suggestFor(e, p){
+  if(!p || !p.length) return null;
+  const reps = s => Number(s.r)||0;
+  if(e.unit==="band" || e.unit==="bw"){
+    const allTop = p.length >= e.sets && p.every(s=>reps(s) >= e.hi);
+    if(e.unit==="band") return allTop ? {kind:"up", msg:"Every set hit the top: switch to a heavier band."} : {kind:"stay", msg:"Same band, beat last time's reps."};
+    return allTop ? {kind:"up", msg:"Every set hit the top: put your feet on the bench."} : {kind:"stay", msg:"Beat last time's reps."};
+  }
+  const nums = p.map(s=>Number(s.w)).filter(n=>n>0);
+  if(!nums.length) return {kind:"stay", msg:"Same weight, beat last time's reps."};
+  const w = Math.max(...nums);
+  const atW = p.filter(s=>Number(s.w)===w);
+  const steps = stepsFor(e);
+  const up = steps.find(x=>x>w), down = [...steps].reverse().find(x=>x<w);
+  const allTop = atW.length >= e.sets && atW.every(s=>reps(s) >= e.hi);
+  const short = atW.filter(s=>reps(s) < e.lo).length;
+  if(allTop){
+    if(up) return {w:up, kind:"up", msg:`Go up to ${up} lb. Every set hit ${e.hi} at ${w}.`};
+    return {w, kind:"max", msg:`Heaviest weight you have. Stay at ${w} lb and lower each rep over 3 seconds.`};
+  }
+  if(short > atW.length/2 && down) return {w:down, kind:"down", msg:`Drop to ${down} lb. Most sets fell short of ${e.lo} reps at ${w}.`};
+  return {w, kind:"stay", msg:`Stay at ${w} lb and beat last time's reps.`};
 }
 
 function hintFor(e, day){
@@ -227,15 +258,9 @@ function hintFor(e, day){
   if(!p || !p.length) return null;
   const line = p.map(s=>s.r).join(", ");
   const w = p[0].w;
-  const allTop = p.length >= e.sets && p.every(s=>Number(s.r) >= e.hi);
   const wTxt = w ? `${w}${e.unit==="band"?"":" lb"} × ` : "";
-  let advice;
-  if(allTop){
-    advice = (e.unit==="band") ? "Hit the top: use a heavier band." :
-             (Number(w) >= 30 && /each/.test(e.unit)) ? "Top of range at 30 lb: slow the lowering to 3 sec or add a pause." :
-             "Hit the top of the range: go up a weight.";
-  } else advice = "Same weight, beat last time's reps.";
-  return {last:`Last (${fmtDate(prev.date)}): ${wTxt}${line}`, advice, up:allTop};
+  const sug = suggestFor(e, p);
+  return {last:`Last (${fmtDate(prev.date)}): ${wTxt}${line}`, advice:sug.msg, up:sug.kind==="up", kind:sug.kind};
 }
 
 // ---------- Rendering ----------
@@ -311,7 +336,7 @@ function exCard(e, rows, day){
   return `<section class="ex${complete?" complete":""}" aria-label="${esc(e.name)}">
     <div class="exhead"><div class="exname"><h3>${esc(e.name)}</h3><button class="howto" type="button" data-form="${e.id}" aria-expanded="${openForms.has(e.id)}">${openForms.has(e.id)?"Hide form":"Show form"}</button></div><span class="target">${e.sets} × ${e.lo}–${e.hi}</span></div>
     <div class="meta">
-      ${h?`<span>${esc(h.last)}</span><span class="hint ${h.up?"up":"hold"}">${esc(h.advice)}</span>`:`<span>First time: pick a weight you could do for ${e.hi+2}–${e.hi+3} reps.</span>`}
+      ${h?`<span>${esc(h.last)}</span><span class="hint ${h.kind}">${esc(h.advice)}</span>`:`<span>First time: pick a weight you could do for ${e.hi+2}–${e.hi+3} reps.</span>`}
       ${e.note?`<span>${esc(e.note)}</span>`:""}
       <span>Rest ${fmtClock(e.rest)}</span>
     </div>

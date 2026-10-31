@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Basement PPL</title>
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1A1E25" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Basement PPL">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+
+/* Layout: one-column phone app — sticky header with lifter + day, exercise cards, timer dock pinned to the bottom */
+:root{
+  --bg:#EEF0F3; --surface:#FFFFFF; --ink:#16191F; --muted:#5D6573; --line:#D5D9E0;
+  --accent:#2F55C9; --accent-ink:#FFFFFF; --accent-soft:#E2E8FA;
+  --good:#1E8A52; --good-soft:#DDF2E6; --warn:#A8660B;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111419; --surface:#1A1E25; --ink:#E9ECF1; --muted:#99A1AF; --line:#2C323C;
+  --accent:#7C9CFF; --accent-ink:#0E1320; --accent-soft:#232C47;
+  --good:#5BCB8C; --good-soft:#18301F; --warn:#E3A84F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111419; --surface:#1A1E25; --ink:#E9ECF1; --muted:#99A1AF; --line:#2C323C;
+  --accent:#7C9CFF; --accent-ink:#0E1320; --accent-soft:#232C47;
+  --good:#5BCB8C; --good-soft:#18301F; --warn:#E3A84F; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--body);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+header .wrap{padding-block:12px 10px;display:grid;gap:10px}
+.toprow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:.02em;text-transform:uppercase;margin:0;line-height:1}
+.who{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.who b{color:var(--ink);font-weight:600}
+.linkbtn{background:none;border:0;padding:4px 0;color:var(--accent);font-weight:600;font-size:14px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--bg);border-radius:10px;padding:4px}
+.seg button{border:0;background:transparent;border-radius:7px;padding:8px 0;font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .12)}
+.seg .next{display:block;font-family:var(--body);font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--accent);line-height:1}
+
+main .wrap{padding-block:16px 140px;display:grid;gap:14px}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.dayhead h2{font-family:var(--display);font-weight:700;font-size:22px;margin:0;text-transform:uppercase;letter-spacing:.03em}
+.dayhead span{color:var(--muted);font-size:14px}
+
+.ex{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px}
+.ex.complete{border-color:var(--good)}
+.exhead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.exhead h3{margin:0;font-size:17px;font-weight:600;line-height:1.25}
+.exname{display:grid;gap:4px;min-width:0}
+.howto{background:none;border:0;font-size:13px;font-weight:600;color:var(--accent);justify-self:start;padding:2px 0}
+.howto:hover{text-decoration:underline}
+.form{display:grid;gap:6px}
+.form .pics{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.form figure{margin:0;display:grid;gap:3px}
+.form img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:8px;background:var(--bg);display:block}
+.form figcaption{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.form .cap{font-size:13px;color:var(--muted)}
+.target{font-family:var(--display);font-weight:700;font-size:16px;white-space:nowrap;color:var(--accent);letter-spacing:.02em}
+.meta{font-size:13px;color:var(--muted);display:grid;gap:2px}
+.hint{font-size:13px;font-weight:600}
+.hint.up{color:var(--good)} .hint.hold{color:var(--warn)}
+.sets{display:grid;gap:6px}
+.setrow{display:grid;grid-template-columns:28px 1fr 1fr 52px;gap:8px;align-items:center}
+.setrow .n{font-family:var(--display);font-weight:700;color:var(--muted);text-align:center;font-size:16px}
+.field{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:0 10px;min-width:0}
+.field input{border:0;background:transparent;width:100%;min-width:0;padding:10px 0;font-size:17px;font-variant-numeric:tabular-nums;outline:none}
+.field small{color:var(--muted);font-size:12px;white-space:nowrap}
+.field:focus-within{border-color:var(--accent)}
+.done{height:44px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;font-size:20px;color:var(--muted)}
+.done[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:#fff}
+.setrow.isdone .field{background:var(--good-soft);border-color:transparent}
+.colhead{display:grid;grid-template-columns:28px 1fr 1fr 52px;gap:8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+.finish{border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);padding:16px;font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:.05em;text-transform:uppercase}
+.finish:disabled{opacity:.45}
+.note{font-size:14px;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:12px 14px}
+.toast{font-size:14px;font-weight:600;color:var(--good)}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.dock .wrap{padding-block:10px;display:flex;align-items:center;gap:10px}
+.clock{font-family:var(--display);font-weight:800;font-size:38px;line-height:1;font-variant-numeric:tabular-nums;min-width:96px}
+.clock.zero{color:var(--good)}
+.dock .label{flex:1;min-width:0;font-size:13px;color:var(--muted)}
+.dock .label b{display:block;color:var(--ink);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 11px;font-weight:600;font-size:14px}
+.bar{position:absolute;left:0;top:-1px;height:3px;background:var(--accent);transition:width .25s linear}
+
+/* Plan & history & settings views */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.panel h2{font-family:var(--display);font-weight:700;font-size:20px;text-transform:uppercase;letter-spacing:.03em;margin:0}
+.panel p,.panel li{margin:0;font-size:15px;max-width:65ch}
+.panel ul{margin:0;padding-left:18px;display:grid;gap:6px}
+.hist{display:grid;gap:4px;border-top:1px solid var(--line);padding-top:10px}
+.hist:first-of-type{border-top:0;padding-top:0}
+.hist .row1{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.hist strong{font-family:var(--display);font-size:18px;text-transform:uppercase;letter-spacing:.03em}
+.hist .sm{font-size:13px;color:var(--muted)}
+.hist .lines{font-size:14px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 14px;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:#C2322B}
+textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:13px ui-monospace,Menlo,monospace;padding:10px}
+.pick{display:grid;gap:10px}
+.pick button{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:18px;font-family:var(--display);font-weight:700;font-size:24px;text-transform:uppercase;letter-spacing:.04em;text-align:left}
+.nameinput{border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:10px;width:100%}
+@media (prefers-reduced-motion:reduce){.bar{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="toprow">
+      <h1>Basement PPL</h1>
+      <div class="who"><span id="whoLabel">Lifter</span> <b id="whoName"></b> <button class="linkbtn" id="switchBtn" type="button">Switch</button></div>
+    </div>
+    <nav class="seg" id="tabs" aria-label="Views"></nav>
+  </div>
+</header>
+
+<main><div class="wrap" id="view"></div></main>
+
+<div class="dock" id="dock" hidden>
+  <div class="bar" id="bar" style="width:0"></div>
+  <div class="wrap">
+    <div class="clock" id="clock">0:00</div>
+    <div class="label"><b id="dockWhat">Rest</b><span id="dockSub">Rest timer</span></div>
+    <button class="chip" id="minus" type="button">−15</button>
+    <button class="chip" id="plus" type="button">+15</button>
+    <button class="chip" id="skip" type="button">Done</button>
+  </div>
+</div>
+
+<script>
+// ---------- The program ----------
+// Double progression: hit the top of the rep range on every set -> next time go up a weight.
+// At the 30 lb ceiling, keep the weight and add reps, a pause, or a 3-second lowering.
+const PLAN = {
+  push:{title:"Push", focus:"Chest · shoulders · triceps", ex:[
+    {id:"dbp",  name:"Dumbbell bench press", sets:4, lo:8,  hi:12, rest:120, unit:"lb each"},
+    {id:"ohp",  name:"Seated dumbbell shoulder press", sets:3, lo:8, hi:12, rest:120, unit:"lb each", note:"Bench upright if it adjusts; otherwise standing."},
+    {id:"fly",  name:"Dumbbell floor or bench fly", sets:3, lo:12, hi:15, rest:75, unit:"lb each"},
+    {id:"lat",  name:"Lateral raise", sets:3, lo:12, hi:20, rest:60, unit:"lb each"},
+    {id:"ohe",  name:"Overhead dumbbell triceps extension", sets:3, lo:10, hi:15, rest:75, unit:"lb", note:"One dumbbell, both hands."},
+    {id:"push", name:"Push-ups (finisher)", sets:2, lo:8, hi:25, rest:60, unit:"bw", note:"Weight column: leave blank. Feet on bench to make harder."}
+  ]},
+  pull:{title:"Pull", focus:"Back · rear delts · biceps", ex:[
+    {id:"row",  name:"One-arm dumbbell row", sets:4, lo:8, hi:12, rest:90, unit:"lb", note:"Hand and knee on the bench. Reps are per arm."},
+    {id:"bpd",  name:"Band kneeling lat pulldown", sets:3, lo:12, hi:15, rest:75, unit:"band", note:"Anchor the band high (door anchor). Write the band color."},
+    {id:"csr",  name:"Chest-supported dumbbell row", sets:3, lo:10, hi:15, rest:90, unit:"lb each", note:"Face down on the bench; or bent-over row if flat."},
+    {id:"fp",   name:"Band face pull", sets:3, lo:15, hi:20, rest:60, unit:"band"},
+    {id:"rdf",  name:"Rear delt fly", sets:2, lo:15, hi:20, rest:60, unit:"lb each"},
+    {id:"curl", name:"Dumbbell curl", sets:3, lo:10, hi:15, rest:60, unit:"lb each"},
+    {id:"ham",  name:"Hammer curl", sets:2, lo:10, hi:15, rest:60, unit:"lb each"}
+  ]},
+  legs:{title:"Legs", focus:"Quads · hamstrings · glutes", ex:[
+    {id:"gob",  name:"Kettlebell goblet squat", sets:4, lo:10, hi:15, rest:120, unit:"lb", note:"36 lb kettlebell tops out fast; add a 3-second lowering once 15s are easy."},
+    {id:"rdl",  name:"Dumbbell Romanian deadlift", sets:3, lo:8, hi:12, rest:120, unit:"lb each"},
+    {id:"bss",  name:"Bulgarian split squat", sets:3, lo:8, hi:12, rest:90, unit:"lb each", note:"Rear foot on the bench. Reps are per leg."},
+    {id:"swing",name:"Kettlebell swing", sets:3, lo:15, hi:20, rest:75, unit:"lb"},
+    {id:"ht",   name:"Dumbbell hip thrust", sets:3, lo:10, hi:15, rest:75, unit:"lb", note:"Upper back on the bench, dumbbell across the hips."},
+    {id:"calf", name:"Single-leg calf raise", sets:3, lo:12, hi:20, rest:45, unit:"lb", note:"Hold a dumbbell on the working side. Reps are per leg."}
+  ]}
+};
+const ORDER = ["push","pull","legs"];
+
+// ---------- On-device storage ----------
+const KEY = "basementPPL.v1";
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || null }catch(e){ return null } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); return true }catch(e){ return false } }
+let S = load() || { name:"", sessions:[], drafts:{} };
+let storageOK = save();
+
+// ---------- UI state ----------
+let view = S.name ? nextDay() : "setup";
+let toast = "";
+let confirmDel = null;
+
+function nextDay(){
+  const last = S.sessions[0];
+  if(!last) return "push";
+  return ORDER[(ORDER.indexOf(last.day)+1) % 3];
+}
+function lastFor(day){ return S.sessions.find(s=>s.day===day) }
+function fmtDate(iso){ const d=new Date(iso); return d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}) }
+
+function draftFor(day){
+  if(!S.drafts[day]){
+    const prev = lastFor(day);
+    const d = {};
+    PLAN[day].ex.forEach(e=>{
+      const p = prev && prev.sets[e.id] || [];
+      const w = p.length ? p[0].w : "";
+      d[e.id] = Array.from({length:e.sets},()=>({w, r:"", done:false}));
+    });
+    S.drafts[day] = d;
+  }
+  return S.drafts[day];
+}
+
+function hintFor(e, day){
+  const prev = lastFor(day);
+  const p = prev && prev.sets[e.id];
+  if(!p || !p.length) return null;
+  const line = p.map(s=>s.r).join(", ");
+  const w = p[0].w;
+  const allTop = p.length >= e.sets && p.every(s=>Number(s.r) >= e.hi);
+  const wTxt = w ? `${w}${e.unit==="band"?"":" lb"} × ` : "";
+  let advice;
+  if(allTop){
+    advice = (e.unit==="band") ? "Hit the top: use a heavier band." :
+             (Number(w) >= 30 && /each/.test(e.unit)) ? "Top of range at 30 lb: slow the lowering to 3 sec or add a pause." :
+             "Hit the top of the range: go up a weight.";
+  } else advice = "Same weight, beat last time's reps.";
+  return {last:`Last (${fmtDate(prev.date)}): ${wTxt}${line}`, advice, up:allTop};
+}
+
+// ---------- Rendering ----------
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])) }
+
+function renderTabs(){
+  const nd = nextDay();
+  const tabs = [["push","Push"],["pull","Pull"],["legs","Legs"],["more","Log"]];
+  $("tabs").innerHTML = tabs.map(([k,l])=>
+    `<button type="button" data-tab="${k}" aria-pressed="${view===k || (k==="more" && ["more","plan","setup"].includes(view))}">${l}${k===nd && S.name?'<span class="next">NEXT</span>':''}</button>`
+  ).join("");
+  $("whoName").textContent = S.name || "—";
+  $("tabs").hidden = !S.name;
+  $("switchBtn").hidden = !S.name;
+}
+
+function render(){
+  renderTabs();
+  const v = $("view");
+  if(view==="setup") return renderSetup(v);
+  if(view==="more")  return renderLog(v);
+  if(view==="plan")  return renderPlan(v);
+  renderDay(v, view);
+}
+
+function renderSetup(v){
+  v.innerHTML = `
+    <div class="panel">
+      <h2>Whose phone is this?</h2>
+      <p>Your log stays on this phone only. Pick your name.</p>
+      <div class="pick">
+        <button type="button" data-pick="Jake">Jake</button>
+        <button type="button" data-pick="Molly">Molly</button>
+      </div>
+    </div>
+    ${planBlurb()}`;
+}
+
+function planBlurb(){
+  return `<div class="panel">
+    <h2>How the plan works</h2>
+    <ul>
+      <li>Three lifting days a week, in order: Push, Pull, Legs. Mon / Wed / Fri works well.</li>
+      <li>Each exercise has a rep range. When every set reaches the top of the range, go up a weight next time. The app tells you when.</li>
+      <li>At the heaviest dumbbell, keep the weight and lower it over 3 seconds, or add a pause at the bottom.</li>
+      <li>Tap ✓ after each set and the rest timer starts on its own.</li>
+      <li>Peloton: 20–30 easy minutes on off days, or 10 minutes as a warm-up.</li>
+      <li>First two weeks: pick weights that leave 2–3 reps in the tank.</li>
+      <li>Tap Show form on any exercise for start and finish photos.</li>
+    </ul>
+    <p class="cap" style="font-size:12px;color:var(--muted)">Exercise photos from free-exercise-db, public domain.</p>
+  </div>`;
+}
+
+function renderDay(v, day){
+  const P = PLAN[day], d = draftFor(day);
+  const doneCount = Object.values(d).flat().filter(s=>s.done).length;
+  v.innerHTML = `
+    <div class="dayhead"><h2>${P.title} day</h2><span>${P.focus}</span></div>
+    ${toast?`<div class="toast" role="status">${esc(toast)}</div>`:""}
+    ${P.ex.map(e=>exCard(e, d[e.id], day)).join("")}
+    <button class="finish" type="button" id="finish" ${doneCount?"":"disabled"}>Finish &amp; save workout</button>
+    ${!storageOK?`<div class="note">This browser is blocking storage, so workouts will not be kept. Open the link in Chrome (Android) or Safari (iPhone).</div>`:""}`;
+  toast = "";
+}
+
+function exCard(e, rows, day){
+  const h = hintFor(e, day);
+  const complete = rows.every(r=>r.done);
+  const wUnit = e.unit==="lb each" ? "lb ea" : e.unit==="band" ? "" : e.unit==="bw" ? "" : "lb";
+  const wPh = e.unit==="band" ? "band" : e.unit==="bw" ? "body" : "lb";
+  return `<section class="ex${complete?" complete":""}" aria-label="${esc(e.name)}">
+    <div class="exhead"><div class="exname"><h3>${esc(e.name)}</h3><button class="howto" type="button" data-form="${e.id}" aria-expanded="${openForms.has(e.id)}">${openForms.has(e.id)?"Hide form":"Show form"}</button></div><span class="target">${e.sets} × ${e.lo}–${e.hi}</span></div>
+    <div class="meta">
+      ${h?`<span>${esc(h.last)}</span><span class="hint ${h.up?"up":"hold"}">${esc(h.advice)}</span>`:`<span>First time: pick a weight you could do for ${e.hi+2}–${e.hi+3} reps.</span>`}
+      ${e.note?`<span>${esc(e.note)}</span>`:""}
+      <span>Rest ${fmtClock(e.rest)}</span>
+    </div>
+    ${openForms.has(e.id)?formPics(e):""}
+    <div class="colhead"><span>Set</span><span>Weight</span><span>Reps</span><span></span></div>
+    <div class="sets">
+      ${rows.map((r,i)=>`<div class="setrow${r.done?" isdone":""}">
+        <span class="n">${i+1}</span>
+        <label class="field"><input id="w-${day}-${e.id}-${i}" data-ex="${e.id}" data-i="${i}" data-k="w" value="${esc(r.w)}" inputmode="${e.unit==="band"?"text":"decimal"}" placeholder="${wPh}" aria-label="Set ${i+1} weight"><small>${wUnit}</small></label>
+        <label class="field"><input id="r-${day}-${e.id}-${i}" data-ex="${e.id}" data-i="${i}" data-k="r" value="${esc(r.r)}" inputmode="numeric" placeholder="${e.lo}–${e.hi}" aria-label="Set ${i+1} reps"></label>
+        <button class="done" type="button" data-done="${e.id}" data-i="${i}" aria-pressed="${r.done}" aria-label="Mark set ${i+1} done">✓</button>
+      </div>`).join("")}
+    </div>
+  </section>`;
+}
+
+const STANDIN = {
+  bpd:"Photo shows a cable machine. Do the same pull kneeling, with a band anchored high on a door.",
+  fp:"Photo shows a cable rope. Do the same pull with a band anchored at face height.",
+  ht:"Photo shows a barbell. Use one dumbbell across your hips instead.",
+  swing:"Photo shows one hand. Two hands on the handle works the same.",
+  csr:"Lie face down on an inclined bench. If yours is flat, bend over with your chest parallel to the floor.",
+  bss:"Rear foot rests on the bench behind you.",
+  calf:"Do one leg at a time, holding the dumbbell on the working side. Standing on a step adds range."
+};
+const openForms = new Set();
+function formPics(e){
+  return `<div class="form">
+    <div class="pics">
+      <figure><img src="img/${e.id}-0.jpg" alt="${esc(e.name)}, start position" loading="lazy"><figcaption>Start</figcaption></figure>
+      <figure><img src="img/${e.id}-1.jpg" alt="${esc(e.name)}, finish position" loading="lazy"><figcaption>Finish</figcaption></figure>
+    </div>
+    ${STANDIN[e.id]?`<span class="cap">${esc(STANDIN[e.id])}</span>`:""}
+  </div>`;
+}
+
+function renderLog(v){
+  const list = S.sessions.slice(0,60);
+  v.innerHTML = `
+    <div class="panel">
+      <h2>${esc(S.name)}'s log</h2>
+      ${list.length? list.map((s,idx)=>{
+        const lines = PLAN[s.day].ex.filter(e=>s.sets[e.id]&&s.sets[e.id].length).map(e=>{
+          const p=s.sets[e.id]; const w=p[0].w;
+          return `${esc(e.name)}: ${w?esc(w)+(e.unit==="band"?"":" lb")+" × ":""}${p.map(x=>esc(x.r)).join(", ")}`;
+        }).join("<br>");
+        return `<div class="hist">
+          <div class="row1"><strong>${PLAN[s.day].title}</strong><span class="sm">${fmtDate(s.date)}</span></div>
+          <div class="lines">${lines}</div>
+          ${confirmDel===idx
+            ? `<div class="row"><button class="btn danger" type="button" data-del="${idx}">Delete this workout</button><button class="btn" type="button" data-cancel>Keep it</button></div>`
+            : `<div><button class="linkbtn" type="button" data-askdel="${idx}">Delete</button></div>`}
+        </div>`}).join("")
+      : `<p>No workouts saved yet. Finish your first Push day and it shows up here.</p>`}
+    </div>
+    <div class="row"><button class="btn" type="button" data-tab="plan">How the plan works</button></div>
+    <div class="panel">
+      <h2>Backup</h2>
+      <p>Your log lives in this phone's browser. Clearing browser data erases it, so copy a backup now and then and paste it into a note.</p>
+      <div class="row"><button class="btn primary" type="button" id="exportBtn">Copy backup</button></div>
+      <textarea id="ioBox" placeholder="Paste a backup here to restore it" aria-label="Backup text"></textarea>
+      <div class="row"><button class="btn" type="button" id="importBtn">Restore from pasted backup</button></div>
+      <div class="toast" id="ioMsg" role="status"></div>
+    </div>`;
+}
+
+function renderPlan(v){
+  v.innerHTML = planBlurb() + ORDER.map(k=>`<div class="panel"><h2>${PLAN[k].title}</h2><ul>${PLAN[k].ex.map(e=>`<li>${esc(e.name)} — ${e.sets} × ${e.lo}–${e.hi}, rest ${fmtClock(e.rest)}</li>`).join("")}</ul></div>`).join("");
+}
+
+// ---------- Rest timer ----------
+let T = {end:0, total:0, int:null, label:"", beeped:false};
+let audio = null, wake = null;
+function fmtClock(s){ s=Math.max(0,Math.round(s)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}` }
+function startRest(sec, label, sub){
+  T.total = sec; T.end = Date.now()+sec*1000; T.label = label; T.beeped=false;
+  $("dockWhat").textContent = label; $("dockSub").textContent = sub;
+  $("dock").hidden = false;
+  try{ if(!audio) audio = new (window.AudioContext||window.webkitAudioContext)(); audio.resume && audio.resume() }catch(e){}
+  try{ if(navigator.wakeLock && !wake) navigator.wakeLock.request("screen").then(w=>{wake=w; w.addEventListener("release",()=>wake=null)}).catch(()=>{}) }catch(e){}
+  clearInterval(T.int); T.int = setInterval(tick, 250); tick();
+}
+function tick(){
+  const left = (T.end-Date.now())/1000;
+  $("clock").textContent = left>0 ? fmtClock(left) : "Go";
+  $("clock").classList.toggle("zero", left<=0);
+  $("bar").style.width = T.total? `${Math.min(100,Math.max(0,(1-left/T.total)*100))}%` : "0";
+  if(left<=0 && !T.beeped){ T.beeped=true; beep(); try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){} }
+  if(left < -60) stopRest();
+}
+function beep(){
+  if(!audio) return;
+  try{
+    [0,0.25,0.5].forEach(t=>{
+      const o=audio.createOscillator(), g=audio.createGain();
+      o.frequency.value=880; o.connect(g); g.connect(audio.destination);
+      g.gain.setValueAtTime(0.0001,audio.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.3,audio.currentTime+t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,audio.currentTime+t+0.18);
+      o.start(audio.currentTime+t); o.stop(audio.currentTime+t+0.2);
+    });
+  }catch(e){}
+}
+function stopRest(){ clearInterval(T.int); $("dock").hidden = true; try{wake&&wake.release()}catch(e){} }
+$("plus").onclick = ()=>{ T.end += 15000; T.total += 15; T.beeped=false; tick() };
+$("minus").onclick = ()=>{ T.end -= 15000; tick() };
+$("skip").onclick = stopRest;
+
+// ---------- Events ----------
+document.addEventListener("click", e=>{
+  const t = e.target.closest("button"); if(!t) return;
+  if(t.dataset.tab){ view = t.dataset.tab==="more"?"more":t.dataset.tab; confirmDel=null; render(); window.scrollTo(0,0); return }
+  if(t.dataset.pick){
+    if(t.dataset.pick==="__other"){ $("otherBox").hidden=false; $("otherName").focus(); return }
+    S.name = t.dataset.pick; storageOK = save(); view = nextDay(); render(); return;
+  }
+  if(t.id==="otherSave"){ const n=$("otherName").value.trim(); if(!n) return; S.name=n; storageOK=save(); view=nextDay(); render(); return }
+  if(t.id==="switchBtn"){ view="setup"; render(); return }
+  if(t.dataset.form){ const id=t.dataset.form; openForms.has(id)?openForms.delete(id):openForms.add(id); const y=window.scrollY; render(); window.scrollTo(0,y); return }
+  if(t.dataset.done){
+    const day=view, d=draftFor(day), r=d[t.dataset.done][+t.dataset.i];
+    r.done = !r.done; save();
+    const ex = PLAN[day].ex.find(x=>x.id===t.dataset.done);
+    if(r.done){
+      // carry weight down to later empty sets
+      d[ex.id].forEach((s,j)=>{ if(j>+t.dataset.i && !s.done && !s.w) s.w = r.w });
+      save();
+      const isLast = d[ex.id].every(s=>s.done);
+      const nextEx = PLAN[day].ex[PLAN[day].ex.indexOf(ex)+1];
+      startRest(ex.rest, isLast ? (nextEx? "Next: "+nextEx.name : "Last set done") : `${ex.name}`, isLast ? "Rest, then move on" : `Set ${+t.dataset.i+2} of ${ex.sets} next`);
+    }
+    const y = window.scrollY; render(); window.scrollTo(0,y); return;
+  }
+  if(t.id==="finish"){
+    const day=view, d=draftFor(day), sets={};
+    PLAN[day].ex.forEach(ex=>{ const done=d[ex.id].filter(s=>s.done && s.r!==""); if(done.length) sets[ex.id]=done.map(s=>({w:s.w,r:s.r})) });
+    S.sessions.unshift({day, date:new Date().toISOString(), sets});
+    delete S.drafts[day]; storageOK = save(); stopRest();
+    view = nextDay(); toast = `${PLAN[day].title} day saved. Next up: ${PLAN[view].title}.`;
+    render(); window.scrollTo(0,0); return;
+  }
+  if(t.dataset.askdel!==undefined){ confirmDel=+t.dataset.askdel; render(); return }
+  if(t.dataset.cancel!==undefined){ confirmDel=null; render(); return }
+  if(t.dataset.del!==undefined){ S.sessions.splice(+t.dataset.del,1); confirmDel=null; save(); render(); return }
+  if(t.id==="exportBtn"){
+    const txt = JSON.stringify({name:S.name, sessions:S.sessions});
+    $("ioBox").value = txt;
+    const done = m=>{ $("ioMsg").textContent = m };
+    try{ navigator.clipboard.writeText(txt).then(()=>done("Backup copied. Paste it into a note or message to yourself."),()=>{ $("ioBox").select(); done("Select-all and copy the text above.") }) }
+    catch(err){ $("ioBox").select(); done("Select-all and copy the text above.") }
+    return;
+  }
+  if(t.id==="importBtn"){
+    try{
+      const o = JSON.parse($("ioBox").value);
+      if(!Array.isArray(o.sessions)) throw 0;
+      S.sessions = o.sessions.filter(s=>PLAN[s.day]&&s.sets).sort((a,b)=>b.date.localeCompare(a.date));
+      if(o.name) S.name=o.name;
+      save(); render(); $("ioMsg").textContent = `Restored ${S.sessions.length} workouts.`;
+    }catch(err){ $("ioMsg").textContent = "That text isn't a backup from this app. Paste the whole copied backup and try again." }
+  }
+});
+document.addEventListener("input", e=>{
+  const i = e.target; if(!i.dataset.ex) return;
+  draftFor(view)[i.dataset.ex][+i.dataset.i][i.dataset.k] = i.value.trim(); save();
+});
+document.addEventListener("keydown", e=>{ if(e.key==="Enter" && e.target.id==="otherName") $("otherSave").click() });
+
+render();
+</script>
+
+<script>
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}) });
+}
+</script>
+</body>
+</html>
